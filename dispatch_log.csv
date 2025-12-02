@@ -1,0 +1,8 @@
+Timestamp,Child_ID,Age_Months,Previous_Visit_Date,Facility,LGA,Vaccines_Before,Vaccines_Administered_Now,Next_Visit_Date
+2025-12-01 19:25:57,0010e543-8f0b-49fb-831c-a502477d7ab5,3,2025-08-26 00:00:00,Dantamashe PHC,Kiru LGA,"[""Penta_3"",""PCV_3"",""Rota_3"",""OPV_3"",""IPV_2""]","OPV_0, OPV_1, Rota_1, OPV_2, Rota_2, BCG, Hep_B0, Penta_1",2025-12-29
+2025-12-01 19:27:01,002d5108-a484-40cf-9ef4-700ce4e28c3f,11,NaT,Dantamashe PHC,Ungogo LGA,nan,"OPV_0, OPV_1, Rota_1, OPV_2, Rota_2, OPV_3, Rota_3, Vitamin_A_1, BCG, Hep_B0, Penta_1",2025-12-29
+2025-12-01 19:33:42,848dd407-d344-4aa4-b35a-db660c218fcc,10,2024-08-15 00:00:00,Dalal PHC,Ungogo LGA,"[""meningitis"",""VitaminA_2""]","OPV_0, OPV_1, Rota_1, OPV_2, Rota_2, OPV_3, Rota_3, Vitamin_A_1, BCG, Hep_B0, Penta_1",2025-12-29
+2025-12-01 20:49:44,d40dde3f-5cd6-43c9-8d7e-5ca87e1bd1ce,4,NaT,MAKERA HEALTH POST.,Kiru LGA,nan,"Rota_2, BCG, Penta_1, IPV_1",2025-12-29
+2025-12-02 13:06:53,002d5108-a484-40cf-9ef4-700ce4e28c3f,11,NaT,Bachirawa HC,Ungogo LGA,nan,BCG,2025-12-30
+2025-12-02 13:13:52,6c7d0b37-2d0c-4612-8516-5859f19277ba,4,NaT,Bachirawa HC,Ungogo LGA,nan,BCG,2025-12-30
+2025-12-02 13:14:13,6c327731-1993-4c6e-8663-60c43acbcf78,3,NaT,Bachirawa HC,Ungogo LGA,nan,BCG,2025-12-30
