@@ -178,7 +178,7 @@ class SuccessModel:
         self.model = GradientBoostingClassifier(n_estimators=200, learning_rate=0.1, max_depth=3, random_state=42)
         self.encoders = {}
         self.imputer = SimpleImputer(strategy='most_frequent')
-        self.filename = BASE / "success_model.pkl"
+        self.filename = "success_model.pkl"
 
     def clean_distance(self, dist_str):
         if pd.isna(dist_str): return 0.0
@@ -247,7 +247,7 @@ class DemandForecastModel:
         self.model = RandomForestRegressor(n_estimators=300, min_samples_split=5, min_samples_leaf=2, random_state=42)
         self.encoders = {}
         self.feature_names = ['health_center_name_code', 'stock_cat_code', 'week_of_year', 'lag_1', 'rolling_mean_4']
-        self.filename = BASE / "demand_model.pkl"
+        self.filename = "demand_model.pkl"
         
     def prepare_data(self, df_visits):
         df = df_visits.copy()
@@ -326,7 +326,7 @@ class ChurnModel:
     def __init__(self):
         self.model = RandomForestClassifier(n_estimators=200, class_weight='balanced', max_depth=15, random_state=42)
         self.encoders = {}
-        self.filename = BASE / "churn_model.pkl"
+        self.filename = "churn_model.pkl"
 
     def prepare_data(self, df_cohort):
         df = df_cohort.copy()
