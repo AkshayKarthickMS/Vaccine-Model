@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 # 1. CONFIG & SYSTEM SETUP
 # ==========================================
 st.set_page_config(page_title="MCHTrack: Command Center", layout="wide", page_icon="🏥")
-
+BASE = Path.cwd()
 # --- VACCINE DEFINITIONS ---
 VACCINE_INFO = {
     'BCG': {'type': 'Injectable', 'site': 'Left Upper Arm'},
@@ -76,7 +76,7 @@ def parse_vaccines(v_str):
     return [v.strip() for v in clean_str.split(',') if v.strip()]
 
 def log_dispatch_to_csv(dispatch_data):
-    file_path = 'dispatch_log.csv'
+    file_path = BASE / 'dispatch_log.csv'
     df_new = pd.DataFrame([dispatch_data])
     if not os.path.isfile(file_path):
         df_new.to_csv(file_path, index=False)
@@ -100,9 +100,10 @@ def init_session_state():
         try:
             # 1. Load Data
             try:
-                df_visits = pd.read_csv(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\facility_visits.csv")
-                df_zerodose = pd.read_excel(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\zerodose.xlsx")
-                df_cohort = pd.read_csv(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\cohort_data.csv")
+                ZERODOSE_PATH = BASE / "zerodose.csv"
+                df_visits = BASE / "facility_visits.csv"
+                df_zerodose = BASE / "zerodose.xlsx"
+                df_cohort = BASE / "cohort_data.csv"
             except Exception as e:
                 st.warning(f"Note: Using simulation data ({e})")
                 
