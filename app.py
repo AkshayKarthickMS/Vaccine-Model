@@ -638,10 +638,10 @@ def main():
                 color = "red" if count < 20 else "green"
                 st.markdown(f"**{cat}**: :{color}[{count}]")
 
-        page = st.radio("Module:", ["Live Dispatch Center", "Facility Planning", "Cohort Tracker"], horizontal=True)
+        page = st.radio("Module:", ["Vaccine Administration", "Facility Planning", "Cohort Tracker"], horizontal=True)
         st.divider()
 
-        if page == "Live Dispatch Center":
+        if page == "Vaccine Administration":
             st.subheader(f"🛡️ Vaccine Administration: {active_facility}")
             pending = df_zd[(df_zd['status'] == 'Pending') & (df_zd['lga_name'] == selected_lga)].copy()
             display_df = pending[['ID', 'age_months', 'vaccines_administered', 'Missing_Vaccines', 'Urgency_Score', 'Success_Prob']].sort_values('Urgency_Score', ascending=False)
