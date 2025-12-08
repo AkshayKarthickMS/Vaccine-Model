@@ -580,7 +580,7 @@ def main():
 
     # --- TOP LEVEL NAVIGATION ---
     st.sidebar.title("MCHTrack System")
-    system_mode = st.sidebar.selectbox("System Role:", ["Field Operations", "Admin HQ"])
+    system_mode = st.sidebar.selectbox("System Role:", ["Community Volunteers", "Admin"])
 
     if system_mode == "Admin HQ":
         st.title("🔐 Admin HQ: Inventory Control")
@@ -624,15 +624,15 @@ def main():
             zd_lgas = df_zd['lga_name'].dropna().unique()
             all_lgas = sorted(list(set(all_lgas) | set(zd_lgas)))
             
-        selected_lga = st.sidebar.selectbox("LGA (Region):", all_lgas)
+        selected_lga = st.sidebar.selectbox("LGA:", all_lgas)
         avail_facilities = hierarchy.get(selected_lga, [])
         if not avail_facilities:
             avail_facilities = list(st.session_state['facility_stock'].keys())
             
-        active_facility = st.sidebar.selectbox("Dispatch Facility:", sorted(avail_facilities))
+        active_facility = st.sidebar.selectbox("Health Facility:", sorted(avail_facilities))
         current_stock = st.session_state['facility_stock'].get(active_facility, {})
 
-        with st.sidebar.expander("📦 Facility Stock (Live)", expanded=False):
+        with st.sidebar.expander("Vaccine Stock (Facility Level)", expanded=False):
             for cat in STOCK_CATEGORIES:
                 count = current_stock.get(cat, 0)
                 color = "red" if count < 20 else "green"
