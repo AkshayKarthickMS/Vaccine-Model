@@ -702,7 +702,7 @@ def main():
                             st.error(f"⛔ Stockout: {cat}")
                             can_dispatch = False
                     
-                    if st.button("🚀 Dispatch Team", type="primary", disabled=not can_dispatch):
+                    if st.button("💉 Vaccinate", type="primary", disabled=not can_dispatch):
                         dispatch_team(selected_child_id, active_facility, oral_selected, inject_selected)
                 
                 elif not pending.empty:
