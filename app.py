@@ -638,7 +638,7 @@ def main():
                 color = "red" if count < 20 else "green"
                 st.markdown(f"**{cat}**: :{color}[{count}]")
 
-        page = st.radio("Module:", ["Vaccine Administration", "Facility Planning", "Cohort Tracker"], horizontal=True)
+        page = st.radio("Module:", ["Vaccine Administration", "Stock Management", "Cohort Tracker"], horizontal=True)
         st.divider()
 
         if page == "Vaccine Administration":
@@ -710,8 +710,8 @@ def main():
                 else:
                     st.success("No pending cases.")
 
-        elif page == "Facility Planning":
-            st.subheader(f"📊 ML Planning: {active_facility}")
+        elif page == "Stock Management":
+            st.subheader(f"📊 Vaccine Stock Level: {active_facility}")
             if demand_ready:
                 forecast = demand_model.predict_next_4_weeks(active_facility)
                 if not forecast.empty:
@@ -719,7 +719,7 @@ def main():
                     plan_df = forecast.join(stock_df)
                     fig = go.Figure()
                     fig.add_trace(go.Bar(x=plan_df.index, y=plan_df['Current'], name='Current Stock', marker_color='#00CC96'))
-                    fig.add_trace(go.Bar(x=plan_df.index, y=plan_df['Forecast_ML'], name='ML Forecast (4wks)', marker_color='#636EFA'))
+                    fig.add_trace(go.Bar(x=plan_df.index, y=plan_df['Forecast_ML'], name='ML Forecast (4weeks)', marker_color='#636EFA'))
                     st.plotly_chart(fig, use_container_width=True)
                     for cat, row in plan_df.iterrows():
                         if row['Current'] < row['Forecast_ML']:
