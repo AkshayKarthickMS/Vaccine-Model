@@ -101,10 +101,9 @@ def init_session_state():
         try:
             # 1. Load Data
             try:
-                ZERODOSE_PATH = BASE / "zerodose.csv"
-                df_visits = BASE / "facility_visits.csv"
-                df_zerodose = BASE / "zerodose.xlsx"
-                df_cohort = BASE / "cohort_data.csv"
+                df_visits = pd.read_csv(BASE / "facility_visits.csv")
+                df_zerodose = pd.read_excel(BASE / "zerodose.xlsx")
+                df_cohort = pd.read_csv(BASE / "cohort_data.csv")
             except Exception as e:
                 st.warning(f"Note: Using simulation data ({e})")
                 
