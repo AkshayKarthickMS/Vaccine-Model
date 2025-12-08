@@ -1,8 +1,12 @@
-[2025-12-02 13:36:38] Success Prediction (Gradient Boost) Training Results:
+[2025-12-08 20:46:45] Success Prediction (Gradient Boost) Training Results:
   - Accuracy: 0.6485355648535565
   - Samples: 1194
 ------------------------------
-[2025-12-02 13:36:41] Demand Forecast (Lag-Optimized) Training Results:
-  - Mean Absolute Error: 6.565039039039039
-  - Samples (Weekly Aggregated): 8322
+[2025-12-08 20:47:01] Demand Forecast (Random Forest Regressor) Training Results:
+  - Mean Absolute Error: 6.74289443449999
+  - Samples: 8322
+------------------------------
+[2025-12-08 20:47:06] Churn Prediction (Cohort) Training Results:
+  - Accuracy: 0.6342248363111752
+  - Samples: 45051
 ------------------------------

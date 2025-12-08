@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestRegressor, RandomForestClassifier
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, mean_absolute_error
@@ -96,54 +96,87 @@ def save_metrics(model_name, metrics):
 # ==========================================
 
 def init_session_state():
-    if 'data_initialized' not in st.session_state or 'facility_stock' not in st.session_state:
+    if 'data_initialized' not in st.session_state or 'facility_stock' not in st.session_state or 'df_cohort' not in st.session_state:
         try:
             # 1. Load Data
-            df_visits = pd.read_csv(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\facility_visits.csv")
-            df_zerodose = pd.read_excel(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\zerodose.xlsx")
-            
+            try:
+                df_visits = pd.read_csv(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\facility_visits.csv")
+                df_zerodose = pd.read_excel(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\zerodose.xlsx")
+                df_cohort = pd.read_csv(r"C:\Users\AkshayKarthickMS\Desktop\phase-2\cohort_data.csv")
+            except Exception as e:
+                st.warning(f"Note: Using simulation data ({e})")
+                
+                facilities = ['Dantamashe PHC', 'Gayawa PHC', 'Rimin kebe PHC', 'Kadawa BHC', 'Joda HP']
+                
+                # Simulation: Ensure parent_id exists for cohort tracking
+                # 300 unique children (parent_id), 500 total visits => repeated visits
+                unique_parents = [f'child_{i}' for i in range(300)]
+                
+                # Create Cohort Data (Visits with parent_id)
+                df_cohort = pd.DataFrame({
+                    'id': [f'visit_{i}' for i in range(500)], # Visit ID
+                    'parent_id': np.random.choice(unique_parents, 500), # Child ID (repetitive)
+                    'visit_date': [pd.Timestamp.now() - pd.Timedelta(days=np.random.randint(0, 365)) for _ in range(500)],
+                    'vaccines_administered': np.random.choice(['{Penta_1, PCV_1}', '{BCG, OPV_0}', '{Measles_1}', '{Yellow_Fever}'], 500),
+                    'health_center_name': np.random.choice(facilities, 500),
+                    'lga_name': np.random.choice(['Ungogo LGA', 'Kiru LGA', 'Gabasawa LGA'], 500)
+                })
+                
+                # df_visits can basically be df_cohort for demand forecasting purposes
+                df_visits = df_cohort.copy()
+
+                df_zerodose = pd.DataFrame({
+                    'ID': [f'zd_{i}' for i in range(50)],
+                    'age_months': np.random.randint(0, 15, 50),
+                    'gender': np.random.choice(['male', 'female'], 50),
+                    'lga_name': np.random.choice(['Ungogo LGA', 'Kiru LGA', 'Gabasawa LGA'], 50),
+                    'Distance to HF': [f"{np.random.uniform(0,5):.2f} KM" for _ in range(50)],
+                    'reasons_for_zd': np.random.choice(['distance', 'refusal'], 50),
+                    'vaccines_administered': ['[]']*50
+                })
+
             if 'status' not in df_zerodose.columns:
                 df_zerodose['status'] = 'Pending'
-            if 'visit_date' in df_visits.columns:
-                df_visits['visit_date'] = pd.to_datetime(df_visits['visit_date'], errors='coerce')
+            
+            # Date conversions
+            for df in [df_visits, df_cohort]:
+                if 'visit_date' in df.columns:
+                    df['visit_date'] = pd.to_datetime(df['visit_date'], errors='coerce')
                 
             st.session_state['df_zerodose'] = df_zerodose
             st.session_state['df_visits'] = df_visits
+            st.session_state['df_cohort'] = df_cohort
             
             # 3. Initialize Facility-Level Stock
             all_facilities = list(df_visits['health_center_name'].unique())
             facility_stock = {}
             for fac in all_facilities:
                 fac_inventory = {cat: 100 for cat in STOCK_CATEGORIES}
-                # Randomize to show variety
                 fac_inventory['Measles'] = np.random.randint(20, 80) 
                 facility_stock[fac] = fac_inventory
                 
             st.session_state['facility_stock'] = facility_stock
             st.session_state['data_initialized'] = True
             
-        except FileNotFoundError:
-            st.error("❌ CRITICAL: Data files not found. Please check paths.")
-            st.stop()
         except Exception as e:
-            st.error(f"⚠️ Critical Error loading data: {e}")
+            st.error(f"⚠️ Critical Error: {e}")
             st.stop()
 
 init_session_state()
 
 # ==========================================
-# 4. ADVANCED ML MODELS (FINE-TUNED)
+# 4. ML MODELS
 # ==========================================
 
 class SuccessModel:
     """
     Model 1: Resolution Probability
-    UPGRADE: Switched to GradientBoostingClassifier for better accuracy on tabular data.
+    ALGORITHM: GradientBoostingClassifier (Requested)
     """
     def __init__(self):
         self.model = GradientBoostingClassifier(n_estimators=200, learning_rate=0.1, max_depth=3, random_state=42)
         self.encoders = {}
-        self.imputer = SimpleImputer(strategy='most_frequent') # Changed to most_frequent for categoricals
+        self.imputer = SimpleImputer(strategy='most_frequent')
         self.filename = "success_model.pkl"
 
     def clean_distance(self, dist_str):
@@ -153,19 +186,15 @@ class SuccessModel:
 
     def preprocess(self, df, training=True):
         data = df.copy()
-        
-        # 1. Feature Engineering
         if 'Distance to HF' in data.columns:
             data['dist_numeric'] = data['Distance to HF'].apply(self.clean_distance)
         else:
             data['dist_numeric'] = 0.0
             
-        # 2. Encode Categoricals
         cat_cols = ['gender', 'lga_name', 'reasons_for_zd']
         for col in cat_cols:
             if col not in data.columns: data[col] = 'Unknown'
             data[col] = data[col].fillna('Unknown').astype(str)
-            
             if training:
                 le = LabelEncoder()
                 self.encoders[col] = le
@@ -173,36 +202,28 @@ class SuccessModel:
             else:
                 le = self.encoders.get(col)
                 if le:
-                    # Handle unknown labels safely
                     data[f'{col}_code'] = data[col].apply(lambda x: le.transform([x])[0] if x in le.classes_ else 0)
                 else:
                     data[f'{col}_code'] = 0
 
-        # Features
         features = ['age_months', 'dist_numeric', 'gender_code', 'lga_name_code', 'reasons_for_zd_code']
-        
         if training:
             X = self.imputer.fit_transform(data[features])
         else:
             X = self.imputer.transform(data[features])
-            
         return X
 
     def train_and_save(self, df):
         train_df = df.copy()
-        if 'Resolution Status' not in train_df.columns:
-            return False
+        if 'Resolution Status' not in train_df.columns: return False
             
         X = self.preprocess(train_df, training=True)
-        # Binarize Target: Resolved vs Everything else
         y = train_df['Resolution Status'].apply(lambda x: 1 if str(x).strip() == 'Resolved' else 0)
         
-        # Train/Test Split
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
         self.model.fit(X_train, y_train)
         
-        # Evaluate
         preds = self.model.predict(X_test)
         acc = accuracy_score(y_test, preds)
         
@@ -219,12 +240,11 @@ class SuccessModel:
 class DemandForecastModel:
     """
     Model 2: Demand Forecasting
-    UPGRADE: Added Lag Features (Previous Week, Rolling Avg) to dramatically reduce MAE.
+    ALGORITHM: RandomForestRegressor (Requested)
     """
     def __init__(self):
-        self.model = RandomForestRegressor(n_estimators=200, n_jobs=-1, random_state=42)
+        self.model = RandomForestRegressor(n_estimators=300, min_samples_split=5, min_samples_leaf=2, random_state=42)
         self.encoders = {}
-        # New Lag Features added
         self.feature_names = ['health_center_name_code', 'stock_cat_code', 'week_of_year', 'lag_1', 'rolling_mean_4']
         self.filename = "demand_model.pkl"
         
@@ -235,31 +255,23 @@ class DemandForecastModel:
         exploded['stock_cat'] = exploded['vaccines_list'].map(VACCINE_MAPPING)
         exploded = exploded.dropna(subset=['stock_cat'])
         
-        # Time Features
         exploded['week_of_year'] = exploded['visit_date'].dt.isocalendar().week
         exploded['year'] = exploded['visit_date'].dt.year
         
-        # Aggregate to Weekly Level
         daily_counts = exploded.groupby(['health_center_name', 'stock_cat', 'year', 'week_of_year']).size().reset_index(name='consumed')
-        
-        # Create Lag Features (The secret sauce for accuracy)
         daily_counts = daily_counts.sort_values(['health_center_name', 'stock_cat', 'year', 'week_of_year'])
         
-        # Shift 1 week back (What did we use last week?)
-        daily_counts['lag_1'] = daily_counts.groupby(['health_center_name', 'stock_cat'])['consumed'].shift(1)
-        # Rolling Average of last 4 weeks
-        daily_counts['rolling_mean_4'] = daily_counts.groupby(['health_center_name', 'stock_cat'])['consumed'].transform(lambda x: x.rolling(window=4).mean())
+        # Lags
+        grouped = daily_counts.groupby(['health_center_name', 'stock_cat'])['consumed']
+        daily_counts['lag_1'] = grouped.shift(1)
+        daily_counts['rolling_mean_4'] = grouped.transform(lambda x: x.rolling(window=4).mean())
         
-        # Drop NaNs created by shifting (first few weeks will be empty)
-        daily_counts = daily_counts.dropna()
-        
-        return daily_counts
+        return daily_counts.dropna()
 
     def train_and_save(self, df_visits):
         data = self.prepare_data(df_visits)
-        if data.empty or len(data) < 10: return False # Need enough data for lags
+        if data.empty or len(data) < 10: return False
         
-        # Encode
         for col in ['health_center_name', 'stock_cat']:
             le = LabelEncoder()
             data[f'{col}_code'] = le.fit_transform(data[col].astype(str))
@@ -275,7 +287,7 @@ class DemandForecastModel:
         preds = self.model.predict(X_test)
         mae = mean_absolute_error(y_test, preds)
         
-        save_metrics("Demand Forecast (Lag-Optimized)", {"Mean Absolute Error": mae, "Samples (Weekly Aggregated)": len(data)})
+        save_metrics("Demand Forecast (Random Forest Regressor)", {"Mean Absolute Error": mae, "Samples": len(data)})
         
         joblib.dump(self, self.filename)
         return True
@@ -292,11 +304,9 @@ class DemandForecastModel:
         for cat in self.encoders['stock_cat'].classes_:
             cat_code = self.encoders['stock_cat'].transform([cat])[0]
             
-            # For prediction, we estimate the lag inputs based on recent history or averages
-            # In a live system, we'd query the DB for last week's exact numbers.
-            # Here we simulate stable consumption for the input features
-            est_lag = 10 # Placeholder for last week's usage
-            est_rolling = 10 # Placeholder
+            # Placeholders for future lags
+            est_lag = 10 
+            est_rolling = 10
             
             weeks_pred = []
             for i in range(1, 5):
@@ -313,18 +323,19 @@ class DemandForecastModel:
 class ChurnModel:
     """Model 3: Early Warning System (Churn Prediction)"""
     def __init__(self):
-        self.model = RandomForestClassifier(n_estimators=200, class_weight='balanced', random_state=42)
+        self.model = RandomForestClassifier(n_estimators=200, class_weight='balanced', max_depth=15, random_state=42)
         self.encoders = {}
         self.filename = "churn_model.pkl"
 
-    def prepare_data(self, df_visits):
-        df = df_visits.copy()
-        df = df.sort_values(['id', 'visit_date'])
+    def prepare_data(self, df_cohort):
+        df = df_cohort.copy()
+        id_col = 'parent_id' if 'parent_id' in df.columns else 'id'
+        df = df.sort_values([id_col, 'visit_date'])
         
-        if df['id'].nunique() == len(df):
+        if df[id_col].nunique() == len(df):
             return pd.DataFrame(), [] 
             
-        df['next_visit'] = df.groupby('id')['visit_date'].shift(-1)
+        df['next_visit'] = df.groupby(id_col)['visit_date'].shift(-1)
         df_clean = df.copy()
         df_clean['days_to_next'] = (df_clean['next_visit'] - df_clean['visit_date']).dt.days
         
@@ -342,8 +353,8 @@ class ChurnModel:
             
         return train_data, ['vaccine_count', 'fac_code']
 
-    def train_and_save(self, df_visits):
-        data, features = self.prepare_data(df_visits)
+    def train_and_save(self, df_cohort):
+        data, features = self.prepare_data(df_cohort)
         if data.empty: return False
         
         X = data[features]
@@ -355,7 +366,7 @@ class ChurnModel:
         preds = self.model.predict(X_test)
         acc = accuracy_score(y_test, preds)
         
-        save_metrics("Churn Prediction Model", {"Accuracy": acc, "Samples": len(data)})
+        save_metrics("Churn Prediction (Cohort)", {"Accuracy": acc, "Samples": len(data)})
         
         joblib.dump(self, self.filename)
         return True
@@ -417,33 +428,46 @@ class CommandEngine:
         return min(score, 100), missing_oral, missing_injectable
 
 class FacilityAnalyzer:
-    def __init__(self, df_visits):
-        self.df = df_visits.copy()
+    def __init__(self, df_cohort):
+        self.df = df_cohort.copy()
+        self.id_col = 'parent_id' if 'parent_id' in self.df.columns else 'id'
         
-    def identify_dropoffs(self, facility_name):
+    def identify_dropoffs(self, facility_name, churn_model=None):
         if self.df.empty: return pd.DataFrame()
         df_subset = self.df if facility_name == "All" else self.df[self.df['health_center_name'] == facility_name]
+        
         today = datetime.now()
-        latest = df_subset.sort_values('visit_date').groupby('id').tail(1).copy()
+        latest = df_subset.sort_values('visit_date').groupby(self.id_col).tail(1).copy()
         latest['days_elapsed'] = (today - latest['visit_date']).dt.days
-        dropoffs = latest[latest['days_elapsed'] > 28].copy()
-        dropoffs['status'] = 'Drop-off (>4wks)'
-        return dropoffs[['id', 'visit_date', 'days_elapsed', 'vaccines_administered', 'status']]
+        
+        if churn_model and hasattr(churn_model.model, "estimators_"):
+            latest['Churn_Prob'] = churn_model.predict_risk(latest)
+            dropoffs = latest[(latest['Churn_Prob'] > 0.5) & (latest['days_elapsed'] > 28)].copy()
+            dropoffs['status'] = 'Predicted Drop-off (ML)'
+        else:
+            dropoffs = latest[latest['days_elapsed'] > 28].copy()
+            dropoffs['status'] = 'Drop-off (>4wks)'
+            dropoffs['Churn_Prob'] = 0.0
+        
+        dropoffs = dropoffs.rename(columns={self.id_col: 'Child_ID'})
+        return dropoffs[['Child_ID', 'visit_date', 'days_elapsed', 'vaccines_administered', 'status', 'Churn_Prob']]
 
     def identify_at_risk(self, facility_name, churn_model):
         if self.df.empty: return pd.DataFrame()
         df_subset = self.df if facility_name == "All" else self.df[self.df['health_center_name'] == facility_name]
         
         today = datetime.now()
-        latest = df_subset.sort_values('visit_date').groupby('id').tail(1).copy()
+        latest = df_subset.sort_values('visit_date').groupby(self.id_col).tail(1).copy()
         latest['days_elapsed'] = (today - latest['visit_date']).dt.days
         
         active = latest[latest['days_elapsed'] <= 28].copy()
         if active.empty: return pd.DataFrame()
         
         active['Churn_Prob'] = churn_model.predict_risk(active)
-        at_risk = active[active['Churn_Prob'] > 0.6] 
-        return at_risk[['id', 'visit_date', 'vaccines_administered', 'Churn_Prob']]
+        at_risk = active[active['Churn_Prob'] > 0.4] 
+        
+        at_risk = at_risk.rename(columns={self.id_col: 'Child_ID'})
+        return at_risk[['Child_ID', 'visit_date', 'vaccines_administered', 'Churn_Prob']]
 
 # ==========================================
 # 5. UI ACTIONS
@@ -495,7 +519,7 @@ def dispatch_team(case_id, facility, oral_selected, inject_selected):
 # ==========================================
 
 @st.cache_resource
-def get_ml_models(df_zd, df_vis):
+def get_ml_models(df_zd, df_vis, df_cohort):
     """
     Load models from disk if available, otherwise train, evaluate, save, and return.
     """
@@ -515,14 +539,15 @@ def get_ml_models(df_zd, df_vis):
     else:
         demand_ready = demand_model.train_and_save(df_vis)
         
-    # 3. Churn Model
+    # 3. Churn Model (Uses Cohort Data with parent_id)
     churn_model = ChurnModel()
     churn_ready = False
     if os.path.exists(churn_model.filename):
         churn_model = joblib.load(churn_model.filename)
         churn_ready = True
     else:
-        churn_ready = churn_model.train_and_save(df_vis)
+        # Pass the cohort data specifically for Churn training
+        churn_ready = churn_model.train_and_save(df_cohort)
         
     return success_model, demand_model, churn_model, demand_ready, churn_ready
 
@@ -536,10 +561,11 @@ def main():
     # Load Models (Fast Cached Load)
     success_model, demand_model, churn_model, demand_ready, churn_ready = get_ml_models(
         st.session_state['df_zerodose'].copy(),
-        st.session_state['df_visits'].copy()
+        st.session_state['df_visits'].copy(),
+        st.session_state['df_cohort'].copy()
     )
     
-    analyzer = FacilityAnalyzer(st.session_state['df_visits'])
+    analyzer = FacilityAnalyzer(st.session_state['df_cohort'])
     df_zd = st.session_state['df_zerodose']
     
     needs = df_zd.apply(engine.calculate_needs, axis=1)
@@ -706,11 +732,12 @@ def main():
             st.title(f"📉 Retention & Cohort Tracking: {active_facility}")
             c1, c2, c3 = st.columns(3)
             with c1:
-                st.subheader("🚨 Drop-offs")
-                st.caption(f"Absent > 4 weeks.")
-                dropoffs = analyzer.identify_dropoffs(active_facility)
+                st.subheader("🚨 Drop-offs (ML Detected)")
+                st.caption(f"High probability of churn.")
+                model_to_use = churn_model if churn_ready else None
+                dropoffs = analyzer.identify_dropoffs(active_facility, model_to_use)
                 if not dropoffs.empty:
-                    st.dataframe(dropoffs[['id', 'days_elapsed']], use_container_width=True)
+                    st.dataframe(dropoffs[['Child_ID', 'days_elapsed', 'Churn_Prob']], use_container_width=True, column_config={"Churn_Prob": st.column_config.ProgressColumn("Risk", format="%.2f", max_value=1)})
                 else:
                     st.success("None detected.")
 
@@ -720,7 +747,7 @@ def main():
                 if churn_ready:
                     at_risk = analyzer.identify_at_risk(active_facility, churn_model)
                     if not at_risk.empty:
-                        st.dataframe(at_risk[['id', 'Churn_Prob']], use_container_width=True, column_config={"Churn_Prob": st.column_config.ProgressColumn("Risk", format="%.2f", max_value=1)})
+                        st.dataframe(at_risk[['Child_ID', 'Churn_Prob']], use_container_width=True, column_config={"Churn_Prob": st.column_config.ProgressColumn("Risk", format="%.2f", max_value=1)})
                     else:
                         st.success("No high-risk patients.")
                 else:
