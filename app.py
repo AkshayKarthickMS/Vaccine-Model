@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 # ==========================================
 # 1. CONFIG & SYSTEM SETUP
 # ==========================================
-st.set_page_config(page_title="MCHTrack: Command Center", layout="wide", page_icon="🏥")
+st.set_page_config(page_title="MCHTrack System", layout="wide", page_icon="🏥")
 BASE = Path.cwd()
 # --- VACCINE DEFINITIONS ---
 VACCINE_INFO = {
