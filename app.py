@@ -642,7 +642,7 @@ def main():
         st.divider()
 
         if page == "Live Dispatch Center":
-            st.subheader(f"🛡️ Dispatch: {active_facility}")
+            st.subheader(f"🛡️ Vaccine Administration: {active_facility}")
             pending = df_zd[(df_zd['status'] == 'Pending') & (df_zd['lga_name'] == selected_lga)].copy()
             display_df = pending[['ID', 'age_months', 'vaccines_administered', 'Missing_Vaccines', 'Urgency_Score', 'Success_Prob']].sort_values('Urgency_Score', ascending=False)
             
