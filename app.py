@@ -512,7 +512,7 @@ def dispatch_team(case_id, facility, oral_selected, inject_selected):
             'Next_Visit_Date': next_visit_date
         }
         log_dispatch_to_csv(log_entry)
-        st.success(f"✅ Team Dispatched from {facility}! Log updated.")
+        st.success(f"✅ Vaccine Administered from {facility}! Log updated.")
         st.rerun()
 
 # ==========================================
@@ -583,7 +583,7 @@ def main():
     system_mode = st.sidebar.selectbox("System Role:", ["Community Volunteers", "Admin"])
 
     if system_mode == "Admin":
-        st.title("🔐 Admin HQ: Inventory Control")
+        st.title("🔐 Admin: Inventory Control")
         st.info("Manage vaccine stock levels across all facilities.")
         
         admin_facs = sorted(list(st.session_state['facility_stock'].keys()))
