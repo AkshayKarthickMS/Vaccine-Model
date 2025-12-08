@@ -18,6 +18,17 @@ from datetime import datetime, timedelta
 # 1. CONFIG & SYSTEM SETUP
 # ==========================================
 st.set_page_config(page_title="MCHTrack System", layout="wide", page_icon="🏥")
+hide_streamlit_style = """
+    <style>
+      /* top-right hamburger menu */
+      #MainMenu {visibility: hidden;}
+      /* top header (contains icons in some Streamlit versions) */
+      header {visibility: hidden;}
+      /* bottom footer (Made with Streamlit / GitHub links) */
+      footer {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 BASE = Path.cwd()
 # --- VACCINE DEFINITIONS ---
 VACCINE_INFO = {
