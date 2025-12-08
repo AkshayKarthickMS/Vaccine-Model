@@ -582,7 +582,7 @@ def main():
     st.sidebar.title("MCHTrack System")
     system_mode = st.sidebar.selectbox("System Role:", ["Community Volunteers", "Admin"])
 
-    if system_mode == "Admin HQ":
+    if system_mode == "Admin":
         st.title("🔐 Admin HQ: Inventory Control")
         st.info("Manage vaccine stock levels across all facilities.")
         
