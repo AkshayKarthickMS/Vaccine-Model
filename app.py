@@ -980,9 +980,15 @@ def get_ml_models(df_zd, df_vis, df_cohort):
     """
     # 1. Success Model
     success_model = SuccessModel()
+    success_loaded = False
     if os.path.exists(success_model.filename):
-        success_model = joblib.load(success_model.filename)
-    else:
+        try:
+            success_model = joblib.load(success_model.filename)
+            success_loaded = True
+        except Exception:
+            pass
+            
+    if not success_loaded:
         success_model.train_and_save(df_zd)
         
     # 2. Demand Forecast Model
@@ -1001,9 +1007,13 @@ def get_ml_models(df_zd, df_vis, df_cohort):
     churn_model = ChurnModel()
     churn_ready = False
     if os.path.exists(churn_model.filename):
-        churn_model = joblib.load(churn_model.filename)
-        churn_ready = True
-    else:
+        try:
+            churn_model = joblib.load(churn_model.filename)
+            churn_ready = True
+        except Exception:
+            pass
+
+    if not churn_ready:
         # Pass the cohort data specifically for Churn training
         churn_ready = churn_model.train_and_save(df_cohort)
         
