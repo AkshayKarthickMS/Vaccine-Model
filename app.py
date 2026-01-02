@@ -12,24 +12,16 @@ import ast
 import os
 import joblib
 from datetime import datetime, timedelta
+from pathlib import Path
+
+BASE = Path(__file__).resolve().parent
 
 # ==========================================
 # 1. CONFIG & SYSTEM SETUP
 # ==========================================
 if __name__ == "__main__":
-    st.set_page_config(page_title="MCHTrack System", layout="wide", page_icon="🏥")
-    hide_streamlit_style = """
-        <style>
-          /* top-right hamburger menu */
-          #MainMenu {visibility: hidden;}
-          /* top header (contains icons in some Streamlit versions) */
-          header {visibility: hidden;}
-          /* bottom footer (Made with Streamlit / GitHub links) */
-          footer {visibility: hidden;}
-        </style>
-    """
-    st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-    BASE = Path.cwd()
+    st.set_page_config(page_title="MCHTrack: Command Center", layout="wide", page_icon="🏥")
+
 # --- VACCINE DEFINITIONS ---
 VACCINE_INFO = {
     'BCG': {'type': 'Injectable', 'site': 'Left Upper Arm'},
@@ -96,7 +88,7 @@ def log_dispatch_to_csv(dispatch_data):
         df_new.to_csv(file_path, mode='a', header=False, index=False)
 
 def save_metrics(model_name, metrics):
-    with open(BASE/"model_metrics.txt", "a") as f:
+    with open(BASE / "model_metrics.txt", "a") as f:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"[{timestamp}] {model_name} Training Results:\n")
         for k, v in metrics.items():
@@ -112,13 +104,13 @@ def init_session_state():
         try:
             # 1. Load Data
             try:
-                df_visits = pd.read_csv(BASE/"facility_visits.csv")
-                df_zerodose = pd.read_excel(BASE/"zerodose.xlsx")
-                df_cohort = pd.read_csv(BASE/"cohort_data.csv")
+                df_visits = pd.read_csv(BASE / "facility_visits.csv")
+                df_zerodose = pd.read_excel(BASE / "zerodose.xlsx")
+                df_cohort = pd.read_csv(BASE / "cohort_data.csv")
                 
                 # Load separate Settlement Data
                 try:
-                    df_settlement = pd.read_csv(BASE/"settlement.csv")
+                    df_settlement = pd.read_csv(BASE / "settlement.csv")
                     st.session_state['df_settlement'] = df_settlement
                 except Exception as e:
                     st.warning(f"Settlement Data Warning: {e}")
