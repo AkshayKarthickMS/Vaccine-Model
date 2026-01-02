@@ -21,6 +21,15 @@ BASE = Path(__file__).resolve().parent
 # ==========================================
 if __name__ == "__main__":
     st.set_page_config(page_title="MCHTrack: Command Center", layout="wide", page_icon="🏥")
+    st.markdown("""
+        <style>
+            #MainMenu {visibility: hidden;}
+            header {visibility: hidden;}
+            footer {visibility: hidden;}
+            [data-testid="stToolbar"] {visibility: hidden;}
+            .stApp > header {display: none;}
+        </style>
+    """, unsafe_allow_html=True)
 
 # --- VACCINE DEFINITIONS ---
 VACCINE_INFO = {
@@ -1001,7 +1010,7 @@ def get_ml_models(df_zd, df_vis, df_cohort):
         except: pass
     
     if not demand_ready:
-        demand_ready = demand_model.train_and_save(df_visits)
+        demand_ready = demand_model.train_and_save(df_vis)
         
     # 3. Churn Model (Uses Cohort Data with parent_id)
     churn_model = ChurnModel()
