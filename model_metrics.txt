@@ -10,3 +10,31 @@
   - Accuracy: 0.6342248363111752
   - Samples: 45051
 ------------------------------
+[2025-12-30 20:10:48] Churn Prediction (Gradient Boost v3) Training Results:
+  - Accuracy: 0.7443037974683544
+  - Samples: 37521
+------------------------------
+[2025-12-30 20:37:42] Churn Prediction (Gradient Boost v3) Training Results:
+  - Accuracy: 0.7443037974683544
+  - Samples: 37521
+------------------------------
+[2025-12-30 20:38:26] Churn Prediction (Gradient Boost v3) Training Results:
+  - Accuracy: 0.7443037974683544
+  - Samples: 37521
+------------------------------
+[2025-12-30 21:13:06] Success Prediction (Gradient Boost) Training Results:
+  - Accuracy: 0.6485355648535565
+  - Samples: 1194
+------------------------------
+[2025-12-30 21:13:48] Success Prediction (Gradient Boost) Training Results:
+  - Accuracy: 0.6485355648535565
+  - Samples: 1194
+------------------------------
+[2025-12-30 21:13:58] Demand Forecast (Gradient Boost v3) Training Results:
+  - R2 Score: 0.8965480620676148
+  - Samples: 9531
+------------------------------
+[2025-12-30 21:14:09] Churn Prediction (Gradient Boost v3) Training Results:
+  - Accuracy: 0.7443037974683544
+  - Samples: 37521
+------------------------------
