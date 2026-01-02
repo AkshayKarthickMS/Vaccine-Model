@@ -20,7 +20,7 @@ BASE = Path(__file__).resolve().parent
 # 1. CONFIG & SYSTEM SETUP
 # ==========================================
 if __name__ == "__main__":
-    st.set_page_config(page_title="MCHTrack: Command Center", layout="wide", page_icon="🏥")
+    st.set_page_config(page_title="MCHTrack System", layout="wide", page_icon="🏥")
     st.markdown("""
         <style>
             #MainMenu {visibility: hidden;}
