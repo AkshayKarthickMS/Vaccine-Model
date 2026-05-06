@@ -207,6 +207,7 @@ def init_session_state():
                 facility_stock[fac] = fac_inventory
                 
             st.session_state['facility_stock'] = facility_stock
+            st.session_state['dispatched_ids'] = set()
             st.session_state['data_initialized'] = True
             
         except Exception as e:
@@ -671,6 +672,16 @@ class FacilityAnalyzer:
     def __init__(self, df_cohort):
         self.df = df_cohort.copy()
         self.id_col = 'parent_id' if 'parent_id' in self.df.columns else 'id'
+        # Use the latest visit date in the dataset as the reference "today"
+        # instead of datetime.now(), so that active vs dropoff classification
+        # is meaningful relative to the actual data timeline.
+        if 'visit_date' in self.df.columns and not self.df.empty:
+            self.df['visit_date'] = pd.to_datetime(self.df['visit_date'], errors='coerce')
+            self.reference_date = self.df['visit_date'].max()
+            if pd.isna(self.reference_date):
+                self.reference_date = pd.Timestamp.now().normalize()
+        else:
+            self.reference_date = pd.Timestamp.now().normalize()
         
     def _get_stage(self, v_list):
         # Define strict order of vaccines for "Last Administered" ranking
@@ -756,7 +767,7 @@ class FacilityAnalyzer:
         if 'track' in df_subset.columns:
             df_subset = df_subset[df_subset['track'] == 'immunization']
         
-        today = datetime.now()
+        today = self.reference_date
         
         # 1. Get Latest Visit Info (for Drop-off Timing & Churn Risk)
         # Ensure date format
@@ -767,7 +778,7 @@ class FacilityAnalyzer:
         latest = df_subset.sort_values('visit_date').groupby(self.id_col).tail(1).copy()
         
         # Ensure 'today' is compatible
-        today = pd.Timestamp.now().normalize()
+        today = pd.Timestamp(today)
         # Ensure latest['visit_date'] is proper datetime type for subtraction
         # (even if converted above, sometimes operations revert or copy issues occur)
         visit_dates = pd.to_datetime(latest['visit_date'])
@@ -833,7 +844,7 @@ class FacilityAnalyzer:
         if 'track' in df_subset.columns:
             df_subset = df_subset[df_subset['track'] == 'immunization']
             
-        today = datetime.now()
+        today = self.reference_date
         latest = df_subset.sort_values('visit_date').groupby(self.id_col).tail(1).copy()
         
         # Calculate Dynamic Allowed Gap to define "Active" vs "Drop-off"
@@ -894,7 +905,7 @@ class FacilityAnalyzer:
         # We need: Last_Stage, Days_Elapsed, Allowed_Gap
         
         # A. Get Latest Date
-        today = datetime.now()
+        today = self.reference_date
         latest = df_subset.sort_values('visit_date').groupby(self.id_col).tail(1).copy()
         date_map = latest.set_index(self.id_col)['visit_date'].to_dict()
         
@@ -947,6 +958,7 @@ def dispatch_team(case_id, facility, oral_selected, inject_selected):
         
     idx = st.session_state['df_zerodose'].index[st.session_state['df_zerodose']['ID'] == case_id].tolist()
     if idx:
+        # Zero-Dose survey record — update in-memory DataFrame
         i = idx[0]
         row_data = st.session_state['df_zerodose'].loc[i]
         child_age = row_data.get('age_months', 'N/A')
@@ -975,6 +987,36 @@ def dispatch_team(case_id, facility, oral_selected, inject_selected):
             'Next_Visit_Date': next_visit_date
         }
         log_dispatch_to_csv(log_entry)
+        st.session_state.setdefault('dispatched_ids', set()).add(case_id)
+        st.success(f"✅ Team Dispatched from {facility}! Log updated.")
+        st.rerun()
+    else:
+        # Facility defaulter record — not in df_zerodose, but still valid
+        # Use the case_row info stored in session state during this run
+        case_row = st.session_state.get('_dispatch_case_row', None)
+        child_age = case_row.get('age_months', 'N/A') if case_row is not None else 'N/A'
+        prev_visit = case_row.get('visit_date', 'N/A') if case_row is not None else 'N/A'
+        lga = case_row.get('lga_name', 'N/A') if case_row is not None else 'N/A'
+        vaccines_before = case_row.get('vaccines_administered', '[]') if case_row is not None else '[]'
+
+        # Deduct stock
+        for cat, qty in needed_stock.items():
+            st.session_state['facility_stock'][facility][cat] -= qty
+
+        next_visit_date = (datetime.now() + timedelta(weeks=4)).strftime('%Y-%m-%d')
+        log_entry = {
+            'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'Child_ID': case_id,
+            'Age_Months': child_age,
+            'Previous_Visit_Date': str(prev_visit),
+            'Facility': facility,
+            'LGA': lga,
+            'Vaccines_Before': str(vaccines_before),
+            'Vaccines_Administered_Now': ", ".join(all_selected),
+            'Next_Visit_Date': next_visit_date
+        }
+        log_dispatch_to_csv(log_entry)
+        st.session_state.setdefault('dispatched_ids', set()).add(case_id)
         st.success(f"✅ Team Dispatched from {facility}! Log updated.")
         st.rerun()
 
@@ -1384,6 +1426,11 @@ def main():
             # 3. Combine Facility + Zero Dose
             pending = pd.concat([df_fac_pending, df_zd_pending], ignore_index=True)
             
+            # Filter out already-dispatched IDs
+            dispatched = st.session_state.get('dispatched_ids', set())
+            if dispatched and not pending.empty:
+                pending = pending[~pending['ID'].isin(dispatched)]
+            
             if not pending.empty:
                 # Calculate Urgency (if not already done)
                 if 'Urgency_Score' not in pending.columns or pending['Urgency_Score'].isna().any():
@@ -1438,51 +1485,82 @@ def main():
             # --- Action Panel (Bottom) ---
             st.divider()
             if selected_child_id:
-                case_row = df_zd[df_zd['ID'] == selected_child_id].iloc[0]
-                st.info(f"Target: **{selected_child_id}**")
-                st.write(f"**Medical Urgency:** {case_row['Urgency_Score']}")
-                st.write(f"**AI Success Prob:** {case_row['Success_Prob']:.2%}")
-                
-                oral_selected = []
-                inject_selected = []
-                
-                if len(case_row['Missing_Oral']) > 0:
-                    st.markdown("**Oral:**")
-                    cols = st.columns(2)
-                    for i, v in enumerate(case_row['Missing_Oral']):
-                        if cols[i % 2].checkbox(v, key=f"o_{selected_child_id}_{v}"):
-                            oral_selected.append(v)
-                
-                if len(case_row['Missing_Inject']) > 0:
-                    st.markdown("**Injectable (Max 3):**")
-                    current_inject_count = 0
-                    for v in case_row['Missing_Inject']:
-                        if st.session_state.get(f"i_{selected_child_id}_{v}", False):
-                            current_inject_count += 1
+                # Look up the selected row from the combined pending table first,
+                # then fall back to df_zd for zero-dose survey records.
+                case_row = None
+                pending_match = pending[pending['ID'] == selected_child_id] if not pending.empty else pd.DataFrame()
+                zd_match = df_zd[df_zd['ID'] == selected_child_id]
+
+                if not pending_match.empty:
+                    case_row = pending_match.iloc[0]
+                elif not zd_match.empty:
+                    case_row = zd_match.iloc[0]
+
+                if case_row is None:
+                    st.warning(f"Could not find details for ID: {selected_child_id}")
+                else:
+                    # Store case_row in session state for dispatch_team to access
+                    st.session_state['_dispatch_case_row'] = case_row
+                    urgency = case_row.get('Urgency_Score', 0)
+                    success_prob = case_row.get('Success_Prob', 0.0)
+
+                    st.info(f"Target: **{selected_child_id}**")
+                    st.write(f"**Medical Urgency:** {urgency}")
+                    st.write(f"**AI Success Prob:** {success_prob:.2%}")
+
+                    # Retrieve missing vaccine lists – they may be stored as lists
+                    # (from df_zd) or need to be recalculated (from facility records).
+                    missing_oral = case_row.get('Missing_Oral', [])
+                    missing_inject = case_row.get('Missing_Inject', [])
+                    if not isinstance(missing_oral, list):
+                        missing_oral = []
+                    if not isinstance(missing_inject, list):
+                        missing_inject = []
+
+                    # If lists are empty but Missing_Vaccines string exists, recalculate
+                    if not missing_oral and not missing_inject:
+                        _, missing_oral, missing_inject = engine.calculate_needs(case_row)
+
+                    oral_selected = []
+                    inject_selected = []
+
+                    if len(missing_oral) > 0:
+                        st.markdown("**Oral:**")
+                        cols = st.columns(2)
+                        for i, v in enumerate(missing_oral):
+                            if cols[i % 2].checkbox(v, key=f"o_{selected_child_id}_{v}"):
+                                oral_selected.append(v)
+
+                    if len(missing_inject) > 0:
+                        st.markdown("**Injectable (Max 3):**")
+                        current_inject_count = 0
+                        for v in missing_inject:
+                            if st.session_state.get(f"i_{selected_child_id}_{v}", False):
+                                current_inject_count += 1
+
+                        cols = st.columns(2)
+                        for i, v in enumerate(missing_inject):
+                            is_checked = st.session_state.get(f"i_{selected_child_id}_{v}", False)
+                            should_disable = (current_inject_count >= 3) and (not is_checked)
+                            if cols[i % 2].checkbox(v, key=f"i_{selected_child_id}_{v}", disabled=should_disable):
+                                inject_selected.append(v)
+
+                    all_sel = oral_selected + inject_selected
+                    can_dispatch = True
+                    if not all_sel: can_dispatch = False
                     
-                    cols = st.columns(2)
-                    for i, v in enumerate(case_row['Missing_Inject']):
-                        is_checked = st.session_state.get(f"i_{selected_child_id}_{v}", False)
-                        should_disable = (current_inject_count >= 3) and (not is_checked)
-                        if cols[i % 2].checkbox(v, key=f"i_{selected_child_id}_{v}", disabled=should_disable):
-                            inject_selected.append(v)
-                
-                all_sel = oral_selected + inject_selected
-                can_dispatch = True
-                if not all_sel: can_dispatch = False
-                
-                needed_stock = {}
-                for v in all_sel:
-                    cat = VACCINE_MAPPING.get(v)
-                    if cat: needed_stock[cat] = needed_stock.get(cat, 0) + 1
-                
-                for cat, qty in needed_stock.items():
-                    if current_stock.get(cat, 0) < qty: 
-                        st.error(f"⛔ Stockout: {cat}")
-                        can_dispatch = False
-                
-                if st.button("🚀 Dispatch Team", type="primary", disabled=not can_dispatch):
-                    dispatch_team(selected_child_id, active_facility, oral_selected, inject_selected)
+                    needed_stock = {}
+                    for v in all_sel:
+                        cat = VACCINE_MAPPING.get(v)
+                        if cat: needed_stock[cat] = needed_stock.get(cat, 0) + 1
+                    
+                    for cat, qty in needed_stock.items():
+                        if current_stock.get(cat, 0) < qty: 
+                            st.error(f"⛔ Stockout: {cat}")
+                            can_dispatch = False
+                    
+                    if st.button("🚀 Dispatch Team", type="primary", disabled=not can_dispatch):
+                        dispatch_team(selected_child_id, active_facility, oral_selected, inject_selected)
             
             elif not pending.empty:
                 st.info("Select a child from the table above to start dispatch.")
